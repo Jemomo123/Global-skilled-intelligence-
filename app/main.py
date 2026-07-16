@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, desc
+import os
 
 from app.database import init_db, get_db
 from app.models import Job
@@ -9,13 +10,15 @@ from app.scheduler import start_scheduler, run_global_scanners
 
 app = FastAPI(title="Global Skilled Intelligence Portal")
 
-# 1. Setup Static and Templates
+# Mount static folder
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Initialize Jinja2 templates directory
 templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 def read_root(request: Request):
-    # This serves your index.html from app/templates/
+    # Renders index.html safely using Jinja2
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/jobs")
