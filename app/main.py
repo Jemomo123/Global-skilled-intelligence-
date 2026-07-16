@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -5,10 +7,12 @@ from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
 
-# 1. This tells FastAPI to serve your CSS/JS files from the "app/static" folder
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# This dynamically finds the folder where main.py is located (app/)
+BASE_DIR = Path(__file__).resolve().parent
 
-templates = Jinja2Templates(directory="app/templates")
+# Link the static and templates folders safely
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Mock data for your feed
 JOBS_DATA = [
@@ -32,3 +36,4 @@ def read_dashboard(request: Request):
 @app.get("/api/jobs")
 def get_jobs():
     return JOBS_DATA
+    
