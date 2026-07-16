@@ -12,9 +12,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 discovery_engine = DiscoveryEngine()
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def read_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html")
 
 @app.get("/api/status")
 def api_status():
