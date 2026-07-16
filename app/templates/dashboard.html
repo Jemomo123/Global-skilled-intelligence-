@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Skilled Intelligence - Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Global Skilled Intelligence</h1>
+            <p class="subtitle">Skilled trade intelligence & live discovery service</p>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-val" id="total-jobs">0</div>
+                <div class="stat-lbl">Discovered</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="cv-matches">0</div>
+                <div class="stat-lbl">CV Matches</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="visa-count">0</div>
+                <div class="stat-lbl">Visa Sponsored</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="permit-count">0</div>
+                <div class="stat-lbl">Work Permit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="relo-count">0</div>
+                <div class="stat-lbl">Relocation</div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-section">
+            <label for="country-filter"><strong>Filter Country:</strong></label>
+            <select id="country-filter">
+                <option value="">All Countries</option>
+            </select>
+        </div>
+
+        <!-- Jobs Feed -->
+        <h2>Latest Discovered Jobs</h2>
+        <div class="job-list" id="job-list">
+            <p>Scanning channels for jobs...</p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+
