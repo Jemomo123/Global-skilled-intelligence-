@@ -1,39 +1,28 @@
-import os
-from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from sqlmodel import Session, select, desc
 
-app = FastAPI()
+from app.database import init_db, get_db
+from app.models import Job
+from app.scheduler import start_scheduler, run_global_scanners
 
-# This dynamically finds the folder where main.py is located (app/)
-BASE_DIR = Path(__file__).resolve().parent
+app = FastAPI(title="Global Skilled Intelligence Portal")
 
-# Link the static and templates folders safely
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+# Mount Static Assets (so app.js and style.css load perfectly on mobile)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Mock data for your feed
-JOBS_DATA = [
-    {
-        "title": "Red Seal Plumber",
-        "company": "Global Skilled Industries",
-        "location": "Toronto, ON",
-        "description": "Looking for an experienced Journeyman Plumber for commercial projects.",
-        "api_score": "100/100",
-        "cv_match": True,
-        "visa_sponsored": True,
-        "work_permit": True,
-        "relocation": True
-    }
-]
+@app.on_event("startup")
+def on_startup():
+    # 1. Initialize SQLite database and tables
+    init_db()
+    # 2. Trigger an immediate scan on startup so the database has jobs ready
+    run_global_scanners()
+    # 3. Start the background scheduler
+    start_scheduler()
 
-@app.get("/")
-def read_dashboard(request: Request):
-    return templates.TemplateResponse(request, "dashboard.html")
-
+# This API route now serves live database jobs ordered by their matching score!
 @app.get("/api/jobs")
-def get_jobs():
-    return JOBS_DATA
-    
+def get_jobs_api(db: Session = Depends(get_db)):
+    statement = select(Job).order_by(desc(Job.api_score))
+    jobs = db.exec(statement).all()
+    return jobs
