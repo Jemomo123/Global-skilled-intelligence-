@@ -33,5 +33,3 @@ class EnrichedJob(BaseModel):
     relocation_offered: bool = False
     country: str = "Unknown"
     job_score: int = 0  # Quality score out of 100
-    
-    
