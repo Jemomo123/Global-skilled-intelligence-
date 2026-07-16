@@ -1,95 +1,80 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const jobListEl = document.getElementById("job-list");
-    const countryFilterEl = document.getElementById("country-filter");
-    
-    let allJobs = [];
-
-    async function fetchJobs() {
-        try {
-            const res = await fetch("/api/jobs/discover");
-            allJobs = await res.json();
-            populateCountryFilter(allJobs);
-            updateDashboard(allJobs);
-        } catch (err) {
-            console.error("Error fetching jobs:", err);
-            jobListEl.innerHTML = "<p>Error loading discovered jobs.</p>";
+// Fetch the jobs from our FastAPI backend
+fetch('/api/jobs')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
-    }
-
-    function populateCountryFilter(jobs) {
-        const countries = new Set();
-        jobs.forEach(job => {
-            if (job.country) {
-                countries.add(job.country);
-            }
-        });
-        
-        countries.forEach(country => {
-            const opt = document.createElement("option");
-            opt.value = country;
-            opt.textContent = country;
-            countryFilterEl.appendChild(opt);
-        });
-    }
-
-    function updateDashboard(jobs) {
-        // UI directly reads pre-computed intelligence flags from Python
-        document.getElementById("total-jobs").textContent = jobs.length;
-        document.getElementById("visa-count").textContent = jobs.filter(j => j.visa_sponsored).length;
-        document.getElementById("relo-count").textContent = jobs.filter(j => j.relocation_offered).length;
-        document.getElementById("permit-count").textContent = jobs.filter(j => j.work_permit_support).length;
-        document.getElementById("cv-matches").textContent = jobs.filter(j => j.cv_match).length;
-
-        renderJobList(jobs);
-    }
-
-    function renderJobList(jobs) {
-        jobListEl.innerHTML = "";
-        if (jobs.length === 0) {
-            jobListEl.innerHTML = "<p>No jobs found.</p>";
-            return;
+        return response.json();
+    })
+    .then(jobs => {
+        // Fallback sample jobs if the backend list is empty
+        if (!jobs || jobs.length === 0) {
+            console.log("No backend jobs found. Using fallback sample jobs for dashboard testing.");
+            jobs = [
+                {
+                    "title": "Red Seal Plumber (Sample)",
+                    "company": "Global Skilled Industries",
+                    "location": "Toronto, ON",
+                    "description": "Looking for an experienced Journeyman Plumber for commercial projects.",
+                    "api_score": "100/100",
+                    "cv_match": true,
+                    "visa_sponsored": true,
+                    "work_permit": true,
+                    "relocation": true
+                },
+                {
+                    "title": "Mechanical Fitter (Sample)",
+                    "company": "Precision Engineering Ltd",
+                    "location": "Vancouver, BC",
+                    "description": "Seeking general fitter with mechanical engineering certificate for machinery maintenance.",
+                    "api_score": "95/100",
+                    "cv_match": true,
+                    "visa_sponsored": false,
+                    "work_permit": true,
+                    "relocation": true
+                }
+            ];
         }
 
-        jobs.forEach(job => {
-            const card = document.createElement("div");
-            card.className = "job-card";
-            
-            let badges = `<span class="badge">${job.source_type.toUpperCase()}</span>`;
-            badges += `<span class="badge score">Score: ${job.job_score}/100</span>`;
-            
-            if (job.cv_match) {
-                badges += `<span class="badge match">CV Match</span>`;
-            }
-            if (job.visa_sponsored) {
-                badges += `<span class="badge visa">Visa Sponsored</span>`;
-            }
-            if (job.work_permit_support) {
-                badges += `<span class="badge permit">Work Permit</span>`;
-            }
-            if (job.relocation_offered) {
-                badges += `<span class="badge relo">Relocation</span>`;
-            }
-
-            card.innerHTML = `
-                <div class="job-title">${job.title}</div>
-                <div class="job-meta">${job.company} — <strong>${job.location}</strong></div>
-                <div style="margin-bottom: 8px; font-size: 14px;">${job.description}</div>
-                <div>${badges}</div>
-            `;
-            jobListEl.appendChild(card);
-        });
-    }
-
-    countryFilterEl.addEventListener("change", (e) => {
-        const selectedCountry = e.target.value;
-        if (!selectedCountry) {
-            renderJobList(allJobs);
-        } else {
-            const filtered = allJobs.filter(job => job.country === selectedCountry);
-            renderJobList(filtered);
-        }
+        renderDashboard(jobs);
+    })
+    .catch(error => {
+        console.error('Detailed Error:', error);
+        // Show the actual technical error on screen for easy debugging
+        document.getElementById('job-list').innerHTML = `
+            <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; border: 1px solid #ef9a9a; margin-top: 20px;">
+                <h4 style="margin-top:0;">⚠️ Error Loading Discovered Jobs</h4>
+                <p style="margin-bottom:0; font-family: monospace; font-size: 13px;">${error.message}</p>
+            </div>
+        `;
     });
 
-    fetchJobs();
-});
-          
+function renderDashboard(jobs) {
+    const jobList = document.getElementById('job-list');
+    jobList.innerHTML = ''; // Clear loading message
+
+    jobs.forEach(job => {
+        const card = document.createElement('div');
+        card.className = 'job-card';
+        card.innerHTML = `
+            <h3>${job.title}</h3>
+            <p><strong>${job.company}</strong> — ${job.location}</p>
+            <p>${job.description}</p>
+            <div class="tags">
+                <span>API Score: ${job.api_score}</span>
+                ${job.cv_match ? '<span>CV Match</span>' : ''}
+                ${job.visa_sponsored ? '<span>Visa Sponsored</span>' : ''}
+                ${job.work_permit ? '<span>Work Permit</span>' : ''}
+                ${job.relocation ? '<span>Relocation</span>' : ''}
+            </div>
+        `;
+        jobList.appendChild(card);
+    });
+
+    // Update Stats Counters safely
+    document.getElementById('total-jobs').innerText = jobs.length;
+    document.getElementById('cv-matches').innerText = jobs.filter(j => j.cv_match).length;
+    document.getElementById('visa-count').innerText = jobs.filter(j => j.visa_sponsored).length;
+    document.getElementById('permit-count').innerText = jobs.filter(j => j.work_permit).length;
+    document.getElementById('relo-count').innerText = jobs.filter(j => j.relocation).length;
+}
