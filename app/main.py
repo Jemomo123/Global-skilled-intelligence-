@@ -2,29 +2,33 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from typing import List
-from app.schemas import EnrichedJob
-from app.services.discovery.engine import DiscoveryEngine
 
-app = FastAPI(title="Global Skilled Intelligence API")
+app = FastAPI()
 
+# 1. This tells FastAPI to serve your CSS/JS files from the "app/static" folder
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
-discovery_engine = DiscoveryEngine()
+
+# Mock data for your feed
+JOBS_DATA = [
+    {
+        "title": "Red Seal Plumber",
+        "company": "Global Skilled Industries",
+        "location": "Toronto, ON",
+        "description": "Looking for an experienced Journeyman Plumber for commercial projects.",
+        "api_score": "100/100",
+        "cv_match": True,
+        "visa_sponsored": True,
+        "work_permit": True,
+        "relocation": True
+    }
+]
 
 @app.get("/")
 def read_dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
 
-@app.get("/api/status")
-def api_status():
-    return {
-        "status": "online",
-        "message": "Welcome to the Global Skilled Intelligence API!"
-    }
-
-@app.get("/api/jobs/discover", response_model=List[EnrichedJob])
-def discover_jobs():
-    """Runs the discovery process, applying full backend intelligence models."""
-    jobs = discovery_engine.run_all()
-    return jobs
+@app.get("/api/jobs")
+def get_jobs():
+    return JOBS_DATA
