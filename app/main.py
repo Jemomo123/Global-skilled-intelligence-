@@ -10,26 +10,14 @@ from app.scheduler import start_scheduler, run_global_scanners
 
 app = FastAPI(title="Global Skilled Intelligence Portal")
 
-# Dynamically resolve absolute paths relative to app/main.py location
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(CURRENT_DIR, "static")
-TEMPLATES_DIR = os.path.join(CURRENT_DIR, "templates")
+# Mount static folder
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Mount static folder cleanly using robust path resolution
-if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-else:
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Initialize Jinja2 templates directory robustly
-if os.path.exists(TEMPLATES_DIR):
-    templates = Jinja2Templates(directory=TEMPLATES_DIR)
-else:
-    templates = Jinja2Templates(directory="app/templates")
+# Initialize Jinja2 templates directory
+templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 def read_root(request: Request):
-    # Standard template invocation compatible with starlette environment specifications
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/jobs")
@@ -40,14 +28,25 @@ def get_jobs_api(db: Session = Depends(get_db)):
 
 @app.on_event("startup")
 def on_startup():
-    # --- FRONTEND ASSET AUDIT LOGS ---
-    print("--- RENDER DEPLOYMENT FILE SYSTEM AUDIT ---")
-    print(f"Main File Location: {__file__}")
-    print(f"Target Templates Absolute Path: {TEMPLATES_DIR} (Exists: {os.path.exists(TEMPLATES_DIR)})")
-    print(f"Target Static Absolute Path: {STATIC_DIR} (Exists: {os.path.exists(STATIC_DIR)})")
-    if os.path.exists(TEMPLATES_DIR):
-        print(f"Contents of templates folder: {os.listdir(TEMPLATES_DIR)}")
-    print("-------------------------------------------")
+    # --- SUPERVISOR DIRECTORY TREE AUDIT ---
+    print("==========================================")
+    print("--- RENDER FILE SYSTEM VISIBILITY AUDIT ---")
+    try:
+        cwd = os.getcwd()
+        print(f"Current Working Directory: {cwd}")
+        print(f"Root contents (.): {os.listdir('.')}")
+        
+        if os.path.exists("app"):
+            print(f"App contents (app/): {os.listdir('app')}")
+            if os.path.exists("app/templates"):
+                print(f"Templates contents (app/templates/): {os.listdir('app/templates')}")
+            else:
+                print("WARNING: 'app/templates' directory DOES NOT EXIST!")
+        else:
+            print("WARNING: 'app' directory DOES NOT EXIST!")
+    except Exception as e:
+        print(f"Failed to audit directories: {e}")
+    print("==========================================")
     
     init_db()
     run_global_scanners()
