@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, desc
-import os
 
 from app.database import init_db, get_db
 from app.models import Job
@@ -18,7 +17,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 def read_root(request: Request):
-    # Renders index.html safely using Jinja2
+    # This must match your folder path: app/templates/index.html
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/jobs")
