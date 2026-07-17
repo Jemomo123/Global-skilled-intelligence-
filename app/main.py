@@ -17,8 +17,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 def read_root(request: Request):
-    # This must match your folder path: app/templates/index.html
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
+
 
 @app.get("/api/jobs")
 def get_jobs_api(db: Session = Depends(get_db)):
