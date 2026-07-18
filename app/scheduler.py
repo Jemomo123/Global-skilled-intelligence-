@@ -12,25 +12,43 @@ from app.services.scanners.new_zealand import scan_new_zealand
 def run_global_scanners():
     print("🔔 Automated scan routine triggered...")
     total_found = 0
-    error_message = None
+    errors = []
+    
+    # List of all scanner operations to execute independently
+    scanners = [
+        ("Canada", scan_canada),
+        ("Croatia", scan_croatia),
+        ("Poland", scan_poland),
+        ("Germany", scan_germany),
+        ("Netherlands", scan_netherlands),
+        ("New Zealand", scan_new_zealand)
+    ]
     
     with Session(engine) as db:
-        try:
-            total_found += scan_canada(db)
-            total_found += scan_croatia(db)
-            total_found += scan_poland(db)
-            total_found += scan_germany(db)
-            total_found += scan_netherlands(db)
-            total_found += scan_new_zealand(db)
-        except Exception as e:
-            error_message = str(e)
-            print(f"❌ Error during automated scanning cycle: {e}")
+        for country, scanner_func in scanners:
+            try:
+                print(f"🔄 Executing scanner for: {country}...")
+                count = scanner_func(db)
+                # Safely guarantee we parse an integer return value
+                total_found += count if isinstance(count, (int, float)) else 0
+                db.commit() # Flush and save this specific country's batch immediately
+            except Exception as e:
+                err_msg = f"[{country} Error]: {str(e)}"
+                print(f"❌ {err_msg}")
+                errors.append(err_msg)
+                db.rollback() # Undo any corrupt session state for this country only
 
-        # Save performance record to history table
-        history_log = ScanHistory(jobs_found=total_found, errors_logged=error_message)
-        db.add(history_log)
-        db.commit()
-        print(f"✅ Scan finished. Saved {total_found} fresh matching items.")
+        # Compile final status report
+        error_summary = "; ".join(errors) if errors else None
+
+        # Save performance record to history table safely
+        try:
+            history_log = ScanHistory(jobs_found=total_found, errors_logged=error_summary)
+            db.add(history_log)
+            db.commit()
+            print(f"✅ Scan finished completely. Saved {total_found} fresh matching items across all online regions.")
+        except Exception as history_error:
+            print(f"⚠️ Failed to write to ScanHistory table: {history_error}")
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
