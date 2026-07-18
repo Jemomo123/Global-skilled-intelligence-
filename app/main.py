@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, desc
 from typing import Optional, List
+from datetime import datetime, timezone
 
 from app.database import init_db, get_db
 from app.models import Job
@@ -21,6 +22,26 @@ templates = Jinja2Templates(directory="app/templates")
 def read_root(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    Production monitoring health check verifying database availability and pipeline operational state.
+    """
+    try:
+        db.execute(select(1))
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, 503
+
 @app.get("/api/jobs")
 def get_jobs_api(
     db: Session = Depends(get_db),
@@ -30,15 +51,16 @@ def get_jobs_api(
     work_permit: Optional[bool] = Query(None, description="Filter by work permit support"),
     relocation: Optional[bool] = Query(None, description="Filter by relocation assistance"),
     min_score: Optional[int] = Query(None, description="Filter by minimum API score"),
-    min_cv_match: Optional[int] = Query(None, description="Filter by minimum CV match percentage")
+    min_cv_match: Optional[int] = Query(None, description="Filter by minimum CV match percentage"),
+    sort_by: Optional[str] = Query("highest_score", description="Sort criteria")
 ):
     """
     Fetches discovered live jobs from the database, applying advanced multi-tier filtering 
-    and sorting the most relevant, highest-scoring jobs first.
+    and multi-mode sorting parameters.
     """
     statement = select(Job)
     
-    # Apply dynamic filters based on Phase 6 Advanced Filter Requirements
+    # Apply filters
     if country and country.lower() != "all countries":
         statement = statement.where(Job.country == country)
         
@@ -60,16 +82,24 @@ def get_jobs_api(
         statement = statement.where(Job.api_score >= min_score)
         
     if min_cv_match is not None:
-        # Fallback safeguard in case old models don't have cv_match_pct column yet
-        if hasattr(Job, 'cv_match_pct'):
-            statement = statement.where(Job.cv_match_pct >= min_cv_match)
+        statement = statement.where(Job.cv_match_pct >= min_cv_match)
 
-    # Sort results to prioritize the absolute highest matching talent rows first
-    statement = statement.order_by(desc(Job.api_score))
+    # Dynamic sorting implementation (Priority 6)
+    if sort_by == "highest_score":
+        statement = statement.order_by(desc(Job.api_score))
+    elif sort_by == "highest_cv":
+        statement = statement.order_by(desc(Job.cv_match_pct))
+    elif sort_by == "newest":
+        statement = statement.order_by(desc(Job.date_discovered))
+    elif sort_by == "country":
+        statement = statement.order_by(Job.country)
+    elif sort_by == "employer":
+        statement = statement.order_by(Job.company)
+    else:
+        statement = statement.order_by(desc(Job.api_score))
+
     jobs = db.exec(statement).all()
     
-    # Phase 4 Location Improvement Safeguard:
-    # Ensure every single serialized job object has a clear location computed for the frontend
     processed_jobs = []
     for job in jobs:
         job_dict = job.dict()
@@ -86,3 +116,4 @@ def on_startup():
     init_db()
     run_global_scanners()
     start_scheduler()
+    
