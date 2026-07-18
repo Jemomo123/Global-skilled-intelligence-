@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
@@ -13,7 +13,7 @@ class Job(SQLModel, table=True):
     description: str
     job_url: str = Field(unique=True)  # Unique index prevents duplicates
     source_website: str
-    date_discovered: datetime = Field(default_factory=datetime.utcnow)
+    date_discovered: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Sponsorship & Benefits
     visa_sponsored: bool = False
@@ -21,12 +21,13 @@ class Job(SQLModel, table=True):
     relocation: bool = False
     employer_immigration_support: bool = False
     
-    # Selection metrics
+    # Selection metrics (Upgraded for Phase 2 & 3 Compliance)
     api_score: int = 0
+    cv_match_pct: int = 0  # Stores the precise percentage match from the ATS parser
     cv_match: bool = False
 
 class ScanHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     jobs_found: int
     errors_logged: Optional[str] = None
