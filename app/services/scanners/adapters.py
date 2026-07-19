@@ -1,6 +1,5 @@
 import logging
 from sqlmodel import Session
-# Relative imports to trace components within the same package folder safely
 from .fetchers import execute_http_fetch
 from .parsers import parse_raw_response
 from .validators import validate_job_payload
@@ -31,7 +30,6 @@ def execute_source_adapter(db: Session, source: dict) -> list:
     valid_new_jobs = []
     for raw_job in parsed_jobs:
         if validate_job_payload(raw_job):
-            # Pass to match verification engine
             processed_job = match_job_requirements(db, raw_job, source)
             if processed_job:
                 valid_new_jobs.append(processed_job)
