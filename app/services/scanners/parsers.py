@@ -1,9 +1,25 @@
-from app.services.scanners.adapters import EuresAdapter, CanadaBulkAdapter
+import logging
 
-def execute_parse(source_config: dict, raw_payload: any) -> list:
-    strategy = source_config["ingestion_type"]
-    adapter = EuresAdapter() if strategy == "LIVE_API" else CanadaBulkAdapter() if strategy == "BULK_DATASET" else None
-    if not adapter: return []
-    parsed_jobs = adapter.parse(raw_payload)
-    source_config["total_records_retrieved"] += len(parsed_jobs)
-    return parsed_jobs
+logger = logging.getLogger("ScannerParsers")
+
+def parse_raw_response(raw_data: dict) -> list:
+    """
+    Safely parses structural response payloads from the live endpoints.
+    Isolated entry point to completely eliminate circular module dependencies.
+    """
+    if not raw_data:
+        return []
+        
+    # Standardize data into a uniform iterable list for the pipeline
+    try:
+        # Check for EURES search engine response structure
+        if "items" in raw_data:
+            return raw_data["items"]
+        # Fallback if raw data is already an formatted list
+        if isinstance(raw_data, list):
+            return raw_data
+            
+        return []
+    except Exception as e:
+        logger.error(f"Parser encountered unexpected structural error: {e}")
+        return []
