@@ -19,19 +19,8 @@ def get_api_jobs(country: str = Query(None)):
     """
     Fetches raw jobs and prints pipeline transmission logs safely.
     """
-    try:
         from app.database import Job
-    except ImportError:
-        from sqlmodel import Field
-        class Job(SQLModel, table=True):
-            id: int | None = Field(default=None, primary_key=True)
-            title: str
-            company: str
-            location: str = ""
-            country: str = ""
-            visa_sponsored: bool = False
-            work_permit: bool = False
-            relocation: bool = False
+
 
     try:
         with Session(engine) as session:
