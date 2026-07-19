@@ -25,8 +25,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Template and Static files rendering engines
-templates = Jinja2Templates(directory="templates")
+# Configure Template engine to search both 'templates/' folder and the root directory
+templates = Jinja2Templates(directory=["templates", "."])
 try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except Exception as e:
