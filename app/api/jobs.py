@@ -19,8 +19,7 @@ def get_api_jobs(country: str = Query(None)):
     """
     Fetches raw jobs and prints pipeline transmission logs safely.
     """
-        from app.database import Job
-
+    from app.database import Job
 
     try:
         with Session(engine) as session:
