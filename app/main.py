@@ -26,27 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dynamically build absolute paths relative to this file's location
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # /opt/render/project/src/app
-PROJECT_ROOT = os.path.dirname(BASE_DIR)              # /opt/render/project/src
+# 1. Point explicitly to the real templates directory in the repo
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-search_paths = [
-    os.path.join(PROJECT_ROOT, "templates"),
-    PROJECT_ROOT,
-    os.path.join(BASE_DIR, "templates"),
-    BASE_DIR
-]
-
-logger.info(f"Configuring Jinja2 search paths: {search_paths}")
-templates = Jinja2Templates(directory=search_paths)
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 try:
-    app.mount("/static", StaticFiles(directory=os.path.join(PROJECT_ROOT, "static")), name="static")
+    if os.path.exists(STATIC_DIR):
+        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 except Exception as e:
-    try:
-        app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-    except Exception as static_err:
-        logger.warning(f"Static directory mounting skipped or not found: {static_err}")
+    logger.warning(f"Static directory mounting skipped: {e}")
 
 # Register the production API routing interfaces
 app.include_router(health_router)
@@ -63,7 +54,8 @@ def read_root(request: Request):
     """
     Authoritative root endpoint rendering the dashboard interface.
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    # 2. Fix the template filename mismatch directly here
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/status")
 def read_status():
