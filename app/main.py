@@ -8,9 +8,8 @@ from fastapi.responses import HTMLResponse
 
 from app.scheduler import start_scheduler
 from app.api.health import router as health_router
-from app.api.jobs import router as jobs_router  # Include the brought back file
+from app.api.jobs import router as jobs_router
 
-# Setup unified application logging matrix
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("GlobalApplicationMain")
 
@@ -27,7 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Core Path Declarations
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -40,26 +38,34 @@ try:
 except Exception as e:
     logger.warning(f"Static directory mounting skipped: {e}")
 
-# Register all production API modular routing interfaces
 app.include_router(health_router)
 app.include_router(jobs_router)
 
 @app.on_event("startup")
 def startup_event():
     logger.info("FastAPI Lifecycle: Initializing system startup routing...")
+    
+    # Start background loop
     start_scheduler()
+    
+    # STEP 5: Force manual diagnostic run inline right now during startup
+    try:
+        logger.info("DEBUG PIPELINE: Executing manual startup diagnostic scan...")
+        from app.scanner_core import run_global_scanner
+        
+        # This executes your exact baseline processing routine immediately
+        run_global_scanner()
+        logger.info("DEBUG PIPELINE: Manual startup diagnostic scan execution completed successfully.")
+    except Exception as pipeline_err:
+        logger.error(f"DEBUG PIPELINE: Emergency manual execution bypassed: {pipeline_err}")
+
     logger.info("FastAPI Lifecycle: Startup sequence fully completed.")
 
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
-    """
-    Authoritative root endpoint rendering the dashboard interface.
-    """
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/status")
 def read_status():
-    """
-    Preserves the raw JSON metadata status string for health checks.
-    """
-    return {"status": "online", "framework": "Phase 2 Production Modular"}
+    return {"status": "online", "framework": "Phase 3 Production Modular Pipeline Debug"}
+    
