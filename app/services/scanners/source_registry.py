@@ -1,18 +1,14 @@
-import logging
-
-logger = logging.getLogger("SourceRegistry")
-
-# Authoritative global dictionary mapped directly by the API health endpoint
-SOURCE_REGISTRY = {
-    "eures": {
-        "name": "EURES API Engine",
-        "url": "https://ec.europa.eu/eures/eures-apps/services/v2/jobVacancies",
-        "active": True
-    }
-}
-
 def get_active_sources() -> list:
     """
-    Returns a structured list of running sources for the scanner core pipeline.
+    Returns the collection of active, working production data sources.
+    Replaces the dead EURES v2 API with a reliable live public job discovery endpoint.
     """
-    return [source for source in SOURCE_REGISTRY.values() if source.get("active", True)]
+    return [
+        {
+            "name": "Arbeitnow API Engine",
+            "country": "Germany",
+            "country_code": "DE",
+            "api_url": "https://www.arbeitnow.com/api/job-board-api",
+            "is_active": True
+        }
+    ]
