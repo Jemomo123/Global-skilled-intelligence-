@@ -1,29 +1,18 @@
-def get_active_sources():
+import logging
+
+logger = logging.getLogger("SourceRegistry")
+
+# Authoritative global dictionary mapped directly by the API health endpoint
+SOURCE_REGISTRY = {
+    "eures": {
+        "name": "EURES API Engine",
+        "url": "https://ec.europa.eu/eures/eures-apps/services/v2/jobVacancies",
+        "active": True
+    }
+}
+
+def get_active_sources() -> list:
     """
-    Returns the authoritative list of active production sources.
-    Uses the official live EURES API endpoints instead of obsolete RSS.
+    Returns a structured list of running sources for the scanner core pipeline.
     """
-    return [
-        {
-            "id": "eures_de_plumber",
-            "name": "EURES Germany Plumber Portal",
-            "country": "Germany",
-            "url": "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search",
-            "payload": {
-                "keywords": ["plumber"],
-                "countries": ["DE"],
-                "positionOpenings": 10
-            }
-        },
-        {
-            "id": "eures_nl_plumber",
-            "name": "EURES Netherlands Plumber Portal",
-            "country": "Netherlands",
-            "url": "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search",
-            "payload": {
-                "keywords": ["plumber"],
-                "countries": ["NL"],
-                "positionOpenings": 10
-            }
-        }
-    ]
+    return [source for source in SOURCE_REGISTRY.values() if source.get("active", True)]
