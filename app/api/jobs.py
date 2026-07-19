@@ -1,7 +1,7 @@
 import logging
 import os
 from fastapi import APIRouter, Query
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, create_engine, select, SQLModel
 
 logger = logging.getLogger("GlobalApplicationJobsAPI")
 
@@ -10,18 +10,19 @@ router = APIRouter(
     tags=["jobs"]
 )
 
+# Unified single production database engine allocation matrix
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///jobs.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
 @router.get("/jobs")
 def get_api_jobs(country: str = Query(None)):
     """
-    Fetches raw jobs and prints pipeline transmission logs before returning.
+    Fetches raw jobs and prints pipeline transmission logs safely.
     """
     try:
         from app.database import Job
     except ImportError:
-        from sqlmodel import SQLModel, Field
+        from sqlmodel import Field
         class Job(SQLModel, table=True):
             id: int | None = Field(default=None, primary_key=True)
             title: str
@@ -41,7 +42,6 @@ def get_api_jobs(country: str = Query(None)):
             else:
                 display_jobs = all_jobs
 
-            # STEP 4 DIAGNOSTIC LOGGING
             print(f"DEBUG PIPELINE: Returning {len(display_jobs)} jobs to API response context")
 
             return {
@@ -73,4 +73,3 @@ def get_api_jobs(country: str = Query(None)):
             "stats": {"discovered": 0, "cv_matches": 0, "visa_sponsored": 0, "work_permit": 0, "relocation": 0},
             "jobs": []
         }
-        
