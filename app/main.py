@@ -1,4 +1,5 @@
 import logging
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25,12 +26,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Template engine to search both 'templates/' folder and the root directory
-templates = Jinja2Templates(directory=["templates", "."])
+# Dynamically build absolute paths relative to this file's location
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # /opt/render/project/src/app
+PROJECT_ROOT = os.path.dirname(BASE_DIR)              # /opt/render/project/src
+
+search_paths = [
+    os.path.join(PROJECT_ROOT, "templates"),
+    PROJECT_ROOT,
+    os.path.join(BASE_DIR, "templates"),
+    BASE_DIR
+]
+
+logger.info(f"Configuring Jinja2 search paths: {search_paths}")
+templates = Jinja2Templates(directory=search_paths)
+
 try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount("/static", StaticFiles(directory=os.path.join(PROJECT_ROOT, "static")), name="static")
 except Exception as e:
-    logger.warning(f"Static directory mounting skipped or not found: {e}")
+    try:
+        app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+    except Exception as static_err:
+        logger.warning(f"Static directory mounting skipped or not found: {static_err}")
 
 # Register the production API routing interfaces
 app.include_router(health_router)
