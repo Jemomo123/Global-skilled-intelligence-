@@ -9,17 +9,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const workPermitEl = document.getElementById('work-permit');
     const relocationEl = document.getElementById('relocation');
 
-    function updateMetrics(jobs) {
-        if (totalDiscoveredEl) totalDiscoveredEl.textContent = jobs.length;
-        if (cvMatchesEl) cvMatchesEl.textContent = jobs.filter(j => j.cv_match).length;
-        if (visaSponsoredEl) visaSponsoredEl.textContent = jobs.filter(j => j.visa_sponsored).length;
-        if (workPermitEl) workPermitEl.textContent = jobs.filter(j => j.work_permit).length;
-        if (relocationEl) relocationEl.textContent = jobs.filter(j => j.relocation).length;
+    function updateMetrics(stats, jobs) {
+        if (stats) {
+            if (totalDiscoveredEl) totalDiscoveredEl.textContent = stats.discovered ?? jobs.length;
+            if (cvMatchesEl) cvMatchesEl.textContent = stats.cv_matches ?? 0;
+            if (visaSponsoredEl) visaSponsoredEl.textContent = stats.visa_sponsored ?? 0;
+            if (workPermitEl) workPermitEl.textContent = stats.work_permit ?? 0;
+            if (relocationEl) relocationEl.textContent = stats.relocation ?? 0;
+        } else {
+            if (totalDiscoveredEl) totalDiscoveredEl.textContent = jobs.length;
+            if (cvMatchesEl) cvMatchesEl.textContent = jobs.filter(j => j.cv_match).length;
+            if (visaSponsoredEl) visaSponsoredEl.textContent = jobs.filter(j => j.visa_sponsored).length;
+            if (workPermitEl) workPermitEl.textContent = jobs.filter(j => j.work_permit).length;
+            if (relocationEl) relocationEl.textContent = jobs.filter(j => j.relocation).length;
+        }
     }
 
     function renderJobs(jobs) {
+        if (!jobList) return;
         jobList.innerHTML = '';
-        if (jobs.length === 0) {
+        if (!jobs || jobs.length === 0) {
             jobList.innerHTML = '<p style="text-align:center; padding: 20px; color: #666;">No matching vacancies discovered for your trade profile.</p>';
             return;
         }
@@ -59,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div class="job-actions" style="margin-top: 12px;">
-                    <a href="${job.job_url}" target="_blank" rel="noopener noreferrer" class="apply-btn" 
+                    <a href="${job.url || job.job_url || '#'}" target="_blank" rel="noopener noreferrer" class="apply-btn" 
                        style="display: inline-block; background: #0076d6; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9em; text-align: center; border: none; width: 100%; box-sizing: border-box;">
                        Apply Now ↗
                     </a>
@@ -78,9 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const res = await fetch(url);
             if (!res.ok) throw new Error('API pipeline connection fault');
+            
             const data = await res.json();
-            renderJobs(data);
-            updateMetrics(data);
+            
+            // Extract jobs array and stats object properly from backend payload
+            const jobsList = Array.isArray(data) ? data : (data.jobs || []);
+            const stats = data.stats || null;
+
+            renderJobs(jobsList);
+            updateMetrics(stats, jobsList);
         } catch (err) {
             console.error('Error fetching jobs:', err);
         }
