@@ -1,7 +1,9 @@
 import logging
-import os
 from fastapi import APIRouter, Query
-from sqlmodel import Session, create_engine, select, SQLModel
+from sqlmodel import Session, select
+
+# Centralized authoritative database engine reference synchronization
+from app.database import engine, Job
 
 logger = logging.getLogger("GlobalApplicationJobsAPI")
 
@@ -10,17 +12,11 @@ router = APIRouter(
     tags=["jobs"]
 )
 
-# Unified single production database engine allocation matrix
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///jobs.db")
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
-
 @router.get("/jobs")
 def get_api_jobs(country: str = Query(None)):
     """
     Fetches raw jobs and prints pipeline transmission logs safely.
     """
-    from app.database import Job
-
     try:
         with Session(engine) as session:
             all_jobs = session.exec(select(Job)).all()
