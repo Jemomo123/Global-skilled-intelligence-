@@ -61,6 +61,7 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                 new_inserted_jobs.append(new_db_job)
                 
         except Exception as item_err:
+            logger.error(f"Error processing individual job item: {item_err}")
             continue
 
     if new_inserted_jobs:
@@ -68,8 +69,8 @@ def execute_source_adapter(db: Session, source: dict) -> list:
             db.commit()
             logger.info(f"Telemetry Log -> Source: {source_name} | Jobs Stored: {len(new_inserted_jobs)}")
         except Exception as commit_err:
+            logger.error(f"Database commit failed: {commit_err}")
             db.rollback()
             return []
             
     return new_inserted_jobs
-                    
