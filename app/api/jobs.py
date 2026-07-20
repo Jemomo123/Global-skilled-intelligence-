@@ -41,6 +41,11 @@ def get_api_jobs(country: str = Query(None)):
                     "company": getattr(job, "company", "Discovered Employer"),
                     "location": getattr(job, "location", "Remote / Global"),
                     "country": getattr(job, "country", "International"),
+                    # Response Serialization Patch: Exposing UI Metadata
+                    "description": getattr(job, "description", "") or getattr(job, "description_raw", "No description available."),
+                    "salary": getattr(job, "salary", "N/A"),
+                    "employment_type": getattr(job, "job_type", None) or getattr(job, "employment_type", "Full-time"),
+                    "date_discovered": getattr(job, "created_at", None) or getattr(job, "date_discovered", None),
                     "visa_sponsored": bool(getattr(job, "visa_sponsored", False)),
                     "work_permit": bool(getattr(job, "work_permit", False)),
                     "relocation": bool(getattr(job, "relocation", False)),
