@@ -1,8 +1,22 @@
 import logging
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, Field
 from app.config import settings
 
 logger = logging.getLogger("DatabaseEngine")
+
+# Master Production Job Model definition shared across API and Scanner loops
+class Job(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    company: str
+    location: str = ""
+    country: str = ""
+    job_url: str = "#"
+    visa_sponsored: bool = False
+    work_permit: bool = False
+    relocation: bool = False
+    cv_match: bool = False
+    cv_match_pct: int = 0
 
 # Configuration matching your Render Postgres or SQLite engine pool
 engine = create_engine(
