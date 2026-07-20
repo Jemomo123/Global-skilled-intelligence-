@@ -7,10 +7,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlmodel import SQLModel
 
-# Task 1 & 2: Clean import containing only verified, existing scheduler routines
+# Explicit central imports from database and scheduler
+from app.database import engine, Job
 from app.scheduler import start_scheduler
 from app.api.health import router as health_router
-from app.api.jobs import router as jobs_router, engine
+from app.api.jobs import router as jobs_router
 
 # Setup unified application logging matrix
 logging.basicConfig(level=logging.INFO)
@@ -50,19 +51,13 @@ app.include_router(jobs_router)
 def startup_event():
     logger.info("FastAPI Lifecycle: Initializing system startup routing...")
     
-    # Force authoritative database table structural generation before scheduler
-    try:
-        from app.database import Job
-    except ImportError:
-        pass
-    
     logger.info("Database Pipeline: Generating system schemas and metadata tables...")
     SQLModel.metadata.create_all(engine)
     
     # Clean activation of the background automation cycle
     start_scheduler()
     
-    # Task 2 (Case B): Trigger the correct manual startup verification scan mapping
+    # Trigger the startup diagnostic scan routine
     try:
         logger.info("DEBUG PIPELINE: Executing manual startup diagnostic scan routine...")
         try:
