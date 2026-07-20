@@ -1,6 +1,6 @@
 import logging
 import httpx
-from sqlmodel import Session, select
+from sqlmodel import Session, select, SQLModel
 
 logger = logging.getLogger("SourceAdapters")
 
@@ -9,7 +9,10 @@ def execute_source_adapter(db: Session, source: dict) -> list:
     Authoritative processing engine that maps incoming source dictionaries 
     to live HTTP fetch routines and commits new rows using SQLModel sessions.
     """
-    from app.database import Job  # Absolute structural reference framework
+    from app.database import Job, engine  # Absolute structural reference framework
+
+    # Bulletproof fallback: Ensure tables are fully created before querying them
+    SQLModel.metadata.create_all(engine)
 
     source_name = source.get("name", "Unknown Source")
     api_url = source.get("api_url")
