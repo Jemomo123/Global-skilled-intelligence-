@@ -1,71 +1,56 @@
+# adapters.py
 import logging
 import httpx
+import re
 from sqlmodel import Session, select, SQLModel
 
 logger = logging.getLogger("SourceAdapters")
 
-def execute_source_adapter(db: Session, source: dict) -> list:
-    """
-    Authoritative processing engine that maps incoming source dictionaries 
-    to live HTTP fetch routines and commits new rows using SQLModel sessions.
-    """
-    from app.database import Job, engine  # Absolute structural reference framework
+def clean_html(raw_html: str) -> str:
+    if not raw_html:
+        return "No description available."
+    clean_text = re.sub(r'<[^>]+>', ' ', raw_html)
+    return " ".join(clean_text.split())
 
-    # Bulletproof fallback: Ensure tables are fully created before querying them
+def execute_source_adapter(db: Session, source: dict) -> list:
+    from app.database import Job, engine
     SQLModel.metadata.create_all(engine)
 
     source_name = source.get("name", "Unknown Source")
     api_url = source.get("api_url")
     target_country = source.get("country", "International")
     
-    logger.info(f"Pipeline Action: Contacting endpoint for {source_name}...")
     new_inserted_jobs = []
     
     try:
         response = httpx.get(api_url, timeout=15.0, follow_redirects=True)
-        status_code = response.status_code
-        logger.info(f"Telemetry Log -> Source: {source_name} | Status Code: {status_code}")
-        
-        if status_code != 200:
+        if response.status_code != 200:
             return []
-            
         payload = response.json()
     except Exception as network_err:
         logger.error(f"Network processing failed for source {source_name}: {network_err}")
         return []
 
     raw_listings = payload.get("data", []) if isinstance(payload, dict) else []
-    logger.info(f"Telemetry Log -> Source: {source_name} | Jobs Downloaded: {len(raw_listings)}")
 
     for raw_job in raw_listings:
         try:
-            title = raw_job.get("title", "Skilled Trades Vacancy")
-            company = raw_job.get("company_name", "Verified Employer")
+            title = raw_job.get("title", "Untitled Vacancy")
+            company = raw_job.get("company_name", "Discovered Employer")
             location = raw_job.get("location", "Remote / Onsite")
             job_url = raw_job.get("url", "#")
+            raw_desc = raw_job.get("description", "")
             
-            # Extract description and tags for strict verification
-            desc_text = (raw_job.get("description") or "").lower()
+            clean_desc = clean_html(raw_desc)
             tags = [str(t).lower() for t in raw_job.get("tags", [])]
-            combined_text = f"{desc_text} {' '.join(tags)}"
+            combined_text = f"{title.lower()} {clean_desc.lower()} {' '.join(tags)}"
 
-            # Strict keyword detection (Defaults STRICTLY to False)
-            visa_sponsored = any(
-                phrase in combined_text 
-                for phrase in ["visa sponsorship", "visa sponsor", "visa support", "visa sponsored"]
-            )
+            # Strict explicit keyword verification (Defaults strictly to False)
+            visa_sponsored = any(p in combined_text for p in ["visa sponsorship", "visa sponsor", "visa support"])
+            work_permit = any(p in combined_text for p in ["work permit", "work permit support"])
+            relocation = any(p in combined_text for p in ["relocation", "relocation package", "relocation assistance"])
 
-            work_permit = any(
-                phrase in combined_text 
-                for phrase in ["work permit", "work permit support", "work authorization"]
-            )
-
-            relocation = any(
-                phrase in combined_text 
-                for phrase in ["relocation", "relocation package", "relocation assistance", "relocation support"]
-            )
-
-            # Prevent duplicates
+            # Deduplication check
             existing = db.exec(
                 select(Job).where(Job.title == title, Job.company == company)
             ).first()
@@ -76,6 +61,7 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                     company=company,
                     location=location,
                     country=target_country,
+                    description=clean_desc,
                     visa_sponsored=visa_sponsored,
                     work_permit=work_permit,
                     relocation=relocation,
@@ -85,13 +71,13 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                 new_inserted_jobs.append(new_db_job)
                 
         except Exception as item_err:
-            logger.error(f"Error processing individual job item: {item_err}")
+            logger.error(f"Error processing item: {item_err}")
             continue
 
     if new_inserted_jobs:
         try:
             db.commit()
-            logger.info(f"Telemetry Log -> Source: {source_name} | Jobs Stored: {len(new_inserted_jobs)}")
+            logger.info(f"Source {source_name}: {len(new_inserted_jobs)} jobs stored successfully.")
         except Exception as commit_err:
             logger.error(f"Database commit failed: {commit_err}")
             db.rollback()
