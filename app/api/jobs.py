@@ -2,7 +2,6 @@ import logging
 from fastapi import APIRouter, Query
 from sqlmodel import Session, select
 
-# Centralized authoritative database engine reference synchronization
 from app.database import engine, Job
 
 logger = logging.getLogger("GlobalApplicationJobsAPI")
@@ -14,9 +13,7 @@ router = APIRouter(
 
 @router.get("/jobs")
 def get_api_jobs(country: str = Query(None)):
-    """
-    Fetches raw jobs and prints pipeline transmission logs safely.
-    """
+    """Fetches and serializes stored job records for the frontend."""
     try:
         with Session(engine) as session:
             all_jobs = session.exec(select(Job)).all()
@@ -28,11 +25,8 @@ def get_api_jobs(country: str = Query(None)):
             else:
                 display_jobs = all_jobs
 
-            logger.info(f"DEBUG PIPELINE: Returning {len(display_jobs)} jobs out of {len(all_jobs)} total.")
-
             formatted_jobs = []
             for job in display_jobs:
-                # Safely resolve URL from either attribute variant
                 job_link = getattr(job, "job_url", None) or getattr(job, "url", "#")
                 
                 formatted_jobs.append({
@@ -41,11 +35,13 @@ def get_api_jobs(country: str = Query(None)):
                     "company": getattr(job, "company", "Discovered Employer"),
                     "location": getattr(job, "location", "Remote / Global"),
                     "country": getattr(job, "country", "International"),
-                    # Response Serialization Patch: Exposing UI Metadata
-                    "description": getattr(job, "description", "") or getattr(job, "description_raw", "No description available."),
+                    "description": getattr(job, "description", "No description available."),
                     "salary": getattr(job, "salary", "N/A"),
                     "employment_type": getattr(job, "job_type", None) or getattr(job, "employment_type", "Full-time"),
                     "date_discovered": getattr(job, "created_at", None) or getattr(job, "date_discovered", None),
+                    "api_score": getattr(job, "api_score", 0),
+                    "cv_match": bool(getattr(job, "cv_match", False)),
+                    "cv_match_pct": getattr(job, "cv_match_pct", 0),
                     "visa_sponsored": bool(getattr(job, "visa_sponsored", False)),
                     "work_permit": bool(getattr(job, "work_permit", False)),
                     "relocation": bool(getattr(job, "relocation", False)),
@@ -56,10 +52,10 @@ def get_api_jobs(country: str = Query(None)):
             return {
                 "stats": {
                     "discovered": len(all_jobs),
-                    "cv_matches": sum(1 for j in all_jobs if getattr(j, "cv_match", False) or getattr(j, "cv_match_pct", 0) > 70),
-                    "visa_sponsored": sum(1 for j in all_jobs if getattr(j, "visa_sponsored", False)),
-                    "work_permit": sum(1 for j in all_jobs if getattr(j, "work_permit", False)),
-                    "relocation": sum(1 for j in all_jobs if getattr(j, "relocation", False))
+                    "cv_matches": sum(1 for j in formatted_jobs if j["cv_match"]),
+                    "visa_sponsored": sum(1 for j in formatted_jobs if j["visa_sponsored"]),
+                    "work_permit": sum(1 for j in formatted_jobs if j["work_permit"]),
+                    "relocation": sum(1 for j in formatted_jobs if j["relocation"])
                 },
                 "jobs": formatted_jobs
             }
