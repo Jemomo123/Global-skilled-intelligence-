@@ -2,12 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const jobList = document.getElementById('job-list');
     const countryFilter = document.getElementById('country-filter');
 
-    // Initialize tracking metrics containers dynamically if they exist
-    const totalDiscoveredEl = document.getElementById('total-discovered');
+    // Corrected DOM Element IDs matching dashboard.html
+    const totalDiscoveredEl = document.getElementById('total-jobs');
     const cvMatchesEl = document.getElementById('cv-matches');
-    const visaSponsoredEl = document.getElementById('visa-sponsored');
-    const workPermitEl = document.getElementById('work-permit');
-    const relocationEl = document.getElementById('relocation');
+    const visaSponsoredEl = document.getElementById('visa-count');
+    const workPermitEl = document.getElementById('permit-count');
+    const relocationEl = document.getElementById('relo-count');
 
     function updateMetrics(stats, jobs) {
         if (stats) {
@@ -16,17 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (visaSponsoredEl) visaSponsoredEl.textContent = stats.visa_sponsored ?? 0;
             if (workPermitEl) workPermitEl.textContent = stats.work_permit ?? 0;
             if (relocationEl) relocationEl.textContent = stats.relocation ?? 0;
-        } else {
-            if (totalDiscoveredEl) totalDiscoveredEl.textContent = jobs.length;
-            if (cvMatchesEl) cvMatchesEl.textContent = jobs.filter(j => j.cv_match).length;
-            if (visaSponsoredEl) visaSponsoredEl.textContent = jobs.filter(j => j.visa_sponsored).length;
-            if (workPermitEl) workPermitEl.textContent = jobs.filter(j => j.work_permit).length;
-            if (relocationEl) relocationEl.textContent = jobs.filter(j => j.relocation).length;
         }
     }
 
     function renderJobs(jobs) {
-        if (!jobList) return;
         jobList.innerHTML = '';
         if (!jobs || jobs.length === 0) {
             jobList.innerHTML = '<p style="text-align:center; padding: 20px; color: #666;">No matching vacancies discovered for your trade profile.</p>';
@@ -90,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const data = await res.json();
             
-            // Extract jobs array and stats object properly from backend payload
+            // Corrected unwrapping logic for data.jobs array and data.stats object
             const jobsList = Array.isArray(data) ? data : (data.jobs || []);
             const stats = data.stats || null;
 
@@ -105,6 +98,5 @@ document.addEventListener('DOMContentLoaded', () => {
         countryFilter.addEventListener('change', fetchJobs);
     }
 
-    // Initial run on boot
     fetchJobs();
 });
