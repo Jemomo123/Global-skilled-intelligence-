@@ -44,6 +44,27 @@ def execute_source_adapter(db: Session, source: dict) -> list:
             location = raw_job.get("location", "Remote / Onsite")
             job_url = raw_job.get("url", "#")
             
+            # Extract description and tags for strict verification
+            desc_text = (raw_job.get("description") or "").lower()
+            tags = [str(t).lower() for t in raw_job.get("tags", [])]
+            combined_text = f"{desc_text} {' '.join(tags)}"
+
+            # Strict keyword detection (Defaults STRICTLY to False)
+            visa_sponsored = any(
+                phrase in combined_text 
+                for phrase in ["visa sponsorship", "visa sponsor", "visa support", "visa sponsored"]
+            )
+
+            work_permit = any(
+                phrase in combined_text 
+                for phrase in ["work permit", "work permit support", "work authorization"]
+            )
+
+            relocation = any(
+                phrase in combined_text 
+                for phrase in ["relocation", "relocation package", "relocation assistance", "relocation support"]
+            )
+
             # Prevent duplicates
             existing = db.exec(
                 select(Job).where(Job.title == title, Job.company == company)
@@ -55,9 +76,9 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                     company=company,
                     location=location,
                     country=target_country,
-                    visa_sponsored=True,  # Force true to see metrics light up
-                    work_permit=True,
-                    relocation=True,
+                    visa_sponsored=visa_sponsored,
+                    work_permit=work_permit,
+                    relocation=relocation,
                     job_url=job_url
                 )
                 db.add(new_db_job)
