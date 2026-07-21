@@ -6,6 +6,7 @@ This module evaluates raw job listings against target skilled trade criteria,
 calculating trade relevance, CV match percentage, and overall API scores.
 """
 
+import re
 from typing import List, Dict, Any
 
 # Initial Default Target Keyword Lists
@@ -66,21 +67,26 @@ def score_job(
             - "cv_match_pct" (int): Scaled percentage score for trade match relevance (0-100).
             - "api_score" (int): Overall aggregated listing value incorporating perks (0-100).
     """
-    text = f"{title} {description}".lower()
+    text = f"{title or ''} {description or ''}".lower()
 
     trade_keywords = get_trade_keywords(custom_trades)
     excluded_keywords = get_excluded_keywords(custom_exclusions)
 
-    # Hard Exclusions: Immediately reject tech/corporate roles
-    if any(ex in text for ex in excluded_keywords):
-        return {
-            "cv_match": False,
-            "cv_match_pct": 0,
-            "api_score": 0
-        }
+    # Hard Exclusions: Immediately reject tech/corporate roles using word boundaries
+    for ex in excluded_keywords:
+        if re.search(rf"\b{re.escape(ex.lower())}\b", text):
+            return {
+                "cv_match": False,
+                "cv_match_pct": 0,
+                "api_score": 0
+            }
 
-    # Trade Keyword Hits
-    trade_hits = sum(1 for kw in trade_keywords if kw in text)
+    # Trade Keyword Hits using word boundaries
+    trade_hits = 0
+    for kw in trade_keywords:
+        if re.search(rf"\b{re.escape(kw.lower())}\b", text):
+            trade_hits += 1
+
     if trade_hits == 0:
         return {
             "cv_match": False,
