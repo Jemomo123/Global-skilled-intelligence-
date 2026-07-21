@@ -14,7 +14,7 @@
         </header>
 
         <!-- Stats Cards -->
-        <div class="stats-grid">
+        <section class="stats-grid" aria-label="Job Discovery Statistics">
             <div class="stat-card">
                 <div class="stat-val" id="total-jobs">0</div>
                 <div class="stat-lbl">Discovered</div>
@@ -35,24 +35,26 @@
                 <div class="stat-val" id="relo-count">0</div>
                 <div class="stat-lbl">Relocation</div>
             </div>
-        </div>
+        </section>
 
         <!-- Filter Controls -->
-        <div class="filter-section">
+        <section class="filter-section">
             <label for="country-filter"><strong>Filter Country:</strong></label>
             <select id="country-filter">
                 <option value="">All Countries</option>
             </select>
-        </div>
+        </section>
 
         <!-- Jobs Feed -->
-        <h2>Latest Discovered Jobs</h2>
-        <div class="job-list" id="job-list">
-            <p>Scanning channels for jobs...</p>
-        </div>
+        <section aria-label="Job Listings">
+            <h2>Latest Discovered Jobs</h2>
+            <div class="job-list" id="job-list">
+                <p>Scanning channels for jobs...</p>
+            </div>
+        </section>
     </div>
 
-    <script src="/static/app.js"></script>
+    <!-- Deferred script loading for optimum frontend performance -->
+    <script src="/static/app.js" defer></script>
 </body>
 </html>
-
