@@ -1,86 +1,41 @@
-import logging
-import os
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from sqlmodel import SQLModel
+# app/main.py
+"""
+FastAPI Main Application Entrypoint.
+"""
 
-# Explicit central imports from database and scheduler
-from app.database import engine, Job
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+from app.database import create_db_and_tables
 from app.scheduler import start_scheduler
-from app.api.health import router as health_router
 from app.api.jobs import router as jobs_router
 
-# Setup unified application logging matrix
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("GlobalApplicationMain")
+logger = logging.getLogger("MainApp")
 
-app = FastAPI(
-    title="Global Skilled Intelligence",
-    description="Skilled trade intelligence & live discovery service"
-)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Create database tables BEFORE starting scheduler
+    create_db_and_tables()
 
-# Core Repository Path Declarations
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
+    # 2. Start Scheduler
+    try:
+        start_scheduler()
+        logger.info("Scheduler started successfully.")
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
 
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+    yield
 
-try:
-    if os.path.exists(STATIC_DIR):
-        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-except Exception as e:
-    logger.warning(f"Static directory mounting skipped: {e}")
 
-# Register all production API modular routing interfaces
-app.include_router(health_router)
+app = FastAPI(title="Global Skilled Intelligence", lifespan=lifespan)
+
+# Register API Routers
 app.include_router(jobs_router)
 
-@app.on_event("startup")
-def startup_event():
-    logger.info("FastAPI Lifecycle: Initializing system startup routing...")
-    
-    logger.info("Database Pipeline: Generating system schemas and metadata tables...")
-    SQLModel.metadata.create_all(engine)
-    
-    # Clean activation of the background automation cycle
-    start_scheduler()
-    
-    # Trigger the startup diagnostic scan routine
-    try:
-        logger.info("DEBUG PIPELINE: Executing manual startup diagnostic scan routine...")
-        try:
-            from app.scheduler import scheduled_production_scanner_job
-            scheduled_production_scanner_job()
-            logger.info("DEBUG PIPELINE: Manual startup diagnostic job run completed successfully.")
-        except ImportError:
-            logger.warning("DEBUG PIPELINE: Custom job direct import missing. Cascading to fallback execution.")
-    except Exception as pipeline_err:
-        logger.error(f"DEBUG PIPELINE: Startup scan runtime update error: {pipeline_err}")
 
-    logger.info("FastAPI Lifecycle: Startup sequence fully completed.")
-
-@app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    """
-    Authoritative root endpoint rendering the dashboard interface.
-    """
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-@app.get("/status")
-def read_status():
-    """
-    Preserves the raw JSON metadata status string for health checks.
-    """
-    return {"status": "online", "framework": "Phase 5 Import Error Repair Complete"}
+@app.get("/")
+def read_root():
+    return {"message": "Global Skilled Intelligence API is live."}
