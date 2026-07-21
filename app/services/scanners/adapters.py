@@ -1,8 +1,17 @@
+# app/adapters.py
+"""
+Generic Unified Adapter Engine.
+
+Handles generic API fetching, payload normalization, perk extraction via central configuration,
+scoring integration, and deduplicated record persistence.
+"""
+
 import logging
 import httpx
 import re
-from sqlmodel import Session, select, SQLModel
+from sqlmodel import Session, select
 from app.scoring import score_job
+from app.config import VISA_KEYWORDS, WORK_PERMIT_KEYWORDS, RELOCATION_KEYWORDS
 
 logger = logging.getLogger("SourceAdapters")
 
@@ -16,6 +25,7 @@ def _clean_html(raw_html: str) -> str:
         return "No description available."
     clean_text = re.sub(r'<[^>]+>', ' ', str(raw_html))
     return " ".join(clean_text.split())
+
 
 def _normalize_job_data(
     title: str = "Untitled Vacancy",
@@ -43,6 +53,7 @@ def _normalize_job_data(
         "date_posted": date_posted or "Recent"
     }
 
+
 # ================================
 # GENERIC UNIFIED ADAPTER
 # ================================
@@ -52,8 +63,7 @@ def execute_source_adapter(db: Session, source: dict) -> list:
     Generic pipeline engine that handles unlimited public job sources.
     Uses registry parameters to fetch, normalize, and score records dynamically.
     """
-    from app.database import Job, engine
-    SQLModel.metadata.create_all(engine)
+    from app.models import Job
 
     source_name = source.get("name", "Unknown Source")
     api_url = source.get("api_url")
@@ -112,13 +122,13 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                 date_posted=raw_job.get("date_posted", "Recent")
             )
 
-            # Strict Benefits Detection (Defaults strictly to False)
+            # Strict Benefits Detection using configured keyword lists
             combined_text = f"{normalized['title']} {normalized['description']}".lower()
-            visa_sponsored = any(p in combined_text for p in ["visa sponsorship", "visa sponsor", "visa support"])
-            work_permit = any(p in combined_text for p in ["work permit", "work permit support"])
-            relocation = any(p in combined_text for p in ["relocation", "relocation package", "relocation assistance"])
+            visa_sponsored = any(kw in combined_text for kw in VISA_KEYWORDS)
+            work_permit = any(kw in combined_text for kw in WORK_PERMIT_KEYWORDS)
+            relocation = any(kw in combined_text for kw in RELOCATION_KEYWORDS)
 
-            # Call Isolated Scoring Engine (Unpacks Dictionary Return)
+            # Call Isolated Scoring Engine
             scores = score_job(
                 title=normalized["title"],
                 description=normalized["description"],
@@ -126,10 +136,20 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                 relocation=relocation
             )
 
-            # Deduplication
-            existing = db.exec(
-                select(Job).where(Job.title == normalized["title"], Job.company == normalized["company"])
-            ).first()
+            # Deduplication (Check job_url first, fallback to title + company)
+            existing = None
+            if normalized["job_url"] and normalized["job_url"] != "#":
+                existing = db.exec(
+                    select(Job).where(Job.job_url == normalized["job_url"])
+                ).first()
+
+            if not existing:
+                existing = db.exec(
+                    select(Job).where(
+                        Job.title == normalized["title"], 
+                        Job.company == normalized["company"]
+                    )
+                ).first()
             
             if not existing:
                 new_db_job = Job(
@@ -146,7 +166,8 @@ def execute_source_adapter(db: Session, source: dict) -> list:
                     cv_match=scores["cv_match"],
                     cv_match_pct=scores["cv_match_pct"],
                     api_score=scores["api_score"],
-                    job_url=normalized["job_url"]
+                    job_url=normalized["job_url"],
+                    source=source_name
                 )
                 db.add(new_db_job)
                 new_inserted_jobs.append(new_db_job)
