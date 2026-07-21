@@ -6,6 +6,7 @@ Database Connection and Initialization.
 import logging
 from sqlmodel import SQLModel, create_engine, Session
 from app.config import settings
+from app.models import Job  # <--- Re-exporting Job here fixes the import error
 
 logger = logging.getLogger("Database")
 
@@ -18,7 +19,6 @@ engine = create_engine(
 
 def create_db_and_tables():
     """Initializes database tables during application startup."""
-    import app.models  # Ensures models are registered with SQLModel metadata
     logger.info("Initializing database tables...")
     SQLModel.metadata.create_all(engine)
     logger.info("Database tables verified/created successfully.")
