@@ -1,13 +1,16 @@
+// app/static/app.js
 document.addEventListener('DOMContentLoaded', () => {
     const jobList = document.getElementById('job-list');
     const countryFilter = document.getElementById('country-filter');
 
-    // Corrected DOM Element IDs matching dashboard.html
+    // DOM Element IDs matching dashboard.html
     const totalDiscoveredEl = document.getElementById('total-jobs');
     const cvMatchesEl = document.getElementById('cv-matches');
     const visaSponsoredEl = document.getElementById('visa-count');
     const workPermitEl = document.getElementById('permit-count');
     const relocationEl = document.getElementById('relo-count');
+
+    let allDiscoveredJobs = [];
 
     function updateMetrics(stats, jobs) {
         if (stats) {
@@ -16,11 +19,42 @@ document.addEventListener('DOMContentLoaded', () => {
             if (visaSponsoredEl) visaSponsoredEl.textContent = stats.visa_sponsored ?? 0;
             if (workPermitEl) workPermitEl.textContent = stats.work_permit ?? 0;
             if (relocationEl) relocationEl.textContent = stats.relocation ?? 0;
+        } else if (jobs) {
+            // Fallback calculation from client array if stats object is omitted
+            if (totalDiscoveredEl) totalDiscoveredEl.textContent = jobs.length;
+            if (cvMatchesEl) cvMatchesEl.textContent = jobs.filter(j => j.cv_match).length;
+            if (visaSponsoredEl) visaSponsoredEl.textContent = jobs.filter(j => j.visa_sponsored).length;
+            if (workPermitEl) workPermitEl.textContent = jobs.filter(j => j.work_permit).length;
+            if (relocationEl) relocationEl.textContent = jobs.filter(j => j.relocation).length;
         }
     }
 
+    function populateCountryFilter(jobs) {
+        if (!countryFilter || !Array.isArray(jobs)) return;
+
+        const currentSelection = countryFilter.value;
+        const countries = new Set();
+
+        jobs.forEach(j => {
+            if (j.country) countries.add(j.country);
+        });
+
+        // Preserve default option
+        countryFilter.innerHTML = '<option value="">All Countries</option>';
+
+        Array.from(countries).sort().forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = country;
+            if (country === currentSelection) option.selected = true;
+            countryFilter.appendChild(option);
+        });
+    }
+
     function renderJobs(jobs) {
+        if (!jobList) return;
         jobList.innerHTML = '';
+
         if (!jobs || jobs.length === 0) {
             jobList.innerHTML = '<p style="text-align:center; padding: 20px; color: #666;">No matching vacancies discovered for your trade profile.</p>';
             return;
@@ -34,9 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.padding = '16px';
             card.style.marginBottom = '16px';
             card.style.background = '#ffffff';
-            
+
             const displayLocation = (job.city && job.country) ? `${job.city}, ${job.country}` : (job.location || job.country || 'Skilled Region');
-            const postDate = job.date_discovered ? new Date(job.date_discovered).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'}) : 'Recent';
+            const rawDate = job.created_at || job.date_discovered;
+            const postDate = rawDate ? new Date(rawDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent';
 
             card.innerHTML = `
                 <div class="job-card-header">
@@ -61,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div class="job-actions" style="margin-top: 12px;">
-                    <a href="${job.url || job.job_url || '#'}" target="_blank" rel="noopener noreferrer" class="apply-btn" 
+                    <a href="${job.job_url || job.url || '#'}" target="_blank" rel="noopener noreferrer" class="apply-btn" 
                        style="display: inline-block; background: #0076d6; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9em; text-align: center; border: none; width: 100%; box-sizing: border-box;">
                        Apply Now ↗
                     </a>
@@ -73,24 +108,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchJobs() {
         try {
-            const country = countryFilter ? countryFilter.value : 'all countries';
+            const selectedCountry = countryFilter ? countryFilter.value.trim() : '';
             let url = '/api/jobs';
-            if (country && country.toLowerCase() !== 'all countries') {
-                url += `?country=${encodeURIComponent(country)}`;
+            
+            if (selectedCountry && selectedCountry.toLowerCase() !== 'all countries') {
+                url += `?country=${encodeURIComponent(selectedCountry)}`;
             }
+
             const res = await fetch(url);
-            if (!res.ok) throw new Error('API pipeline connection fault');
-            
+            if (!res.ok) throw new Error(`API pipeline connection fault: ${res.statusText}`);
+
             const data = await res.json();
-            
-            // Corrected unwrapping logic for data.jobs array and data.stats object
+
+            // Unpack list and stats safely
             const jobsList = Array.isArray(data) ? data : (data.jobs || []);
             const stats = data.stats || null;
+
+            // Populate filter options on initial fetch when empty
+            if (allDiscoveredJobs.length === 0 && jobsList.length > 0) {
+                allDiscoveredJobs = jobsList;
+                populateCountryFilter(allDiscoveredJobs);
+            }
 
             renderJobs(jobsList);
             updateMetrics(stats, jobsList);
         } catch (err) {
             console.error('Error fetching jobs:', err);
+            if (jobList) {
+                jobList.innerHTML = '<p style="text-align:center; padding: 20px; color: #d9534f;">Failed to load job listings. Please refresh or check connection.</p>';
+            }
         }
     }
 
@@ -98,5 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
         countryFilter.addEventListener('change', fetchJobs);
     }
 
+    // Initial load
     fetchJobs();
 });
