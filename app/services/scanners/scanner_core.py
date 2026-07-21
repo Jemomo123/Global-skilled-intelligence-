@@ -1,40 +1,58 @@
-import logging
-from sqlmodel import Session
-# Relative imports look directly inside the current folder path
-from .source_registry import get_active_sources
-from .adapters import execute_source_adapter
+# app/config.py
+"""
+Central Configuration & Keyword Dictionaries.
+"""
 
-logger = logging.getLogger("ScannerCore")
+import os
 
-def run_global_scanner(db: Session) -> int:
-    """
-    Production entry point called by the scheduler.
-    Iterates through registered sources and processes vacancies with safety fallbacks.
-    """
-    logger.info("Starting production global scanning sequence...")
-    active_sources = get_active_sources()
-    total_new_jobs = 0
+
+class Settings:
+    # Set active profession (Can be switched dynamically later)
+    ACTIVE_PROFESSION: str = os.getenv("ACTIVE_PROFESSION", "Plumbing")
     
-    for source in active_sources:
-        try:
-            # Defensive step: print exact structure to logs if things misbehave
-            source_name = source.get('name', 'Unknown Source')
-            
-            # Safe parsing mapping to prevent KeyError: 'country'
-            source_country = source.get('country') or source.get('country_code') or source.get('countries') or 'International'
-            
-            logger.info(f"Processing source: {source_name} ({source_country})")
-            
-            # Inject the processed country name safely back into the object for the adapter
-            source['country'] = source_country
-            
-            new_jobs = execute_source_adapter(db, source)
-            total_new_jobs += len(new_jobs) if new_jobs else 0
-            
-        except Exception as e:
-            # This guarantees that a single broken key won't crash the entire background loop
-            logger.error(f"Error executing source configuration matrix lookup: {e}")
-            continue
-            
-    logger.info(f"Global scanning sequence finished. Total jobs added: {total_new_jobs}")
-    return total_new_jobs
+    # SQLite Database URI
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./global_skilled.db")
+    
+    # Your target trades CV profile for matching logic
+    USER_CV: str = """
+    Certified Plumber with over 20 years of career experience in plumbing. 
+    Holds an educational certificate as a general fitter in mechanical engineering.
+    Specializes in commercial and industrial piping installations, construction, 
+    and supervisory duties.
+    """
+
+
+settings = Settings()
+
+
+# ================================
+# CENTRALIZED IMMIGRATION KEYWORDS
+# ================================
+
+VISA_KEYWORDS = [
+    "visa sponsorship",
+    "visa sponsor",
+    "visa support",
+    "sponsorship available",
+    "work visa",
+    "tier 2",
+    "h1b",
+    "work permit provided"
+]
+
+WORK_PERMIT_KEYWORDS = [
+    "work permit",
+    "work permit support",
+    "right to work",
+    "work authorization",
+    "eligible to work"
+]
+
+RELOCATION_KEYWORDS = [
+    "relocation",
+    "relocation package",
+    "relocation assistance",
+    "relocation allowance",
+    "relocation support",
+    "relocation provided"
+]
